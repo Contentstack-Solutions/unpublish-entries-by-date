@@ -100,7 +100,7 @@ async function unpublishEntry(contentType, entry, options) {
         .then((data) => {
           if (data.error_code && data.data_error_code === "429") {
             LOG({ ...options, verbose: true }, `Rate limit exceeded. Waiting for 1 seconds.`);
-            delay(1000)
+            delay(options.limitWait)
               .then(() => {
                 resolve(unpublishEntry(contentType, entry, options));
               })
@@ -142,6 +142,7 @@ yargs(hideBin(process.argv))
         locale: argv.locale,
         mode: argv.mode,
         verbose: argv.verbose,
+        wait: argv.limitWait,
       };
       if (argv.verbose) {
         console.log(`Running <${argv.$0}> with options:`, options);
@@ -180,6 +181,13 @@ yargs(hideBin(process.argv))
     demandOption: false,
     choices: ["live", "dry-run"],
     default: "dry-run",
+  })
+  .option("limitWait", {
+    alias: "w",
+    describe: "Milliseconds to wait for next publish attempt if API rate limit is reached",
+    type: "number",
+    demandOption: false,
+    default: 100,
   })
   .option("verbose", {
     alias: "v",

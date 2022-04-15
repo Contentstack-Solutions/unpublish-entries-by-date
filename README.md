@@ -19,6 +19,8 @@ Options:
   -e, --environment         Environment to unpublish entries from [string] [required]
   -l, --locale              Locale to unpublish entries from [string] [required]
   -m, --mode                Mode to run the script in [string] [choices: "live", "dry-run"] [default: "dry-run"]
+  -w, --limitWait           Milliseconds to wait for next publish attempt if API
+                             rate limit is reached  [number] [default: 100]
   -v, --verbose             Verbose mode [boolean] [default: false]
       --help                Show help [boolean]
 ```
@@ -31,6 +33,9 @@ node unpbulish.js run -d "2022-02-16 15:32:07" -e production -l en-us -f article
 
 # Unpublishes entries older than 2022-02-16 that will be unpublished from production environment for en-us locale for article and home content types.
 node unpublish.js run -d "2022-02-16" -e production -l en-us -m live
+
+# With a retry wait time of 1 second:
+node unpublish.js run -d "2022-02-16" -e production -l en-us -m live -w 1000
 ```
 
 ## Using index.js
