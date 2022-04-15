@@ -30,13 +30,13 @@ async function run(options) {
     let entryArray = await getEntries(contentTypes[i], options);
     for (let j = 0; j < entryArray.entries.length; j++) {
       let createdDate = new Date(Date.parse(entryArray.entries[j].created_at));
-      const thresholdDate = new Date(Date.parse(unpublishOlderThan));
-      if (createdDate.getTime() < thresholdDate.getTime()) {
+
+      if (createdDate.getTime() < options.date.getTime()) {
         unpublishEntry(contentTypes[i], entryArray.entries[j], options);
       } else {
         LOG(
-          verbose,
-          `Skip [${locale}][${entryArray.entries[j].title}] [${entryArray.entries[j].uid}]. Content was created after : ${unpublishOlderThan}`
+          options,
+          `Skip [${options.locale}][${entryArray.entries[j].title}] [${entryArray.entries[j].uid}]. Content was created after : ${options.unpublishOlderThan}`
         );
       }
     }
@@ -58,7 +58,7 @@ async function getContentTypes() {
 async function getEntries(contentType, options) {
   return new Promise(async (resolve, reject) => {
     await fetch(
-      "https://cdn.contentstack.io/v3/content_types/" + contentType + "/entries?environment=" + options.environment,
+      `https://cdn.contentstack.io/v3/content_types/${contentType}/entries?environment=${options.environment}&query={ "created_at": { "$lt": "${options.utcString}" } }`,
       {
         method: "GET",
         headers: { api_key: process.env.REACT_API_KEY, access_token: process.env.REACT_DELIVERY_TOKEN },
@@ -74,7 +74,7 @@ async function getEntries(contentType, options) {
 
 async function unpublishEntry(contentType, entry, options) {
   const log = `Unpublish [${options.locale}][${entry.title}][${entry.uid}]. Content was created on: ${entry.created_at}`;
-  if (mode && mode === "live") {
+  if (options.mode && options.mode === "live") {
     return new Promise(async (resolve, reject) => {
       const unpublishBody = {
         entry: {
@@ -128,50 +128,14 @@ yargs(hideBin(process.argv))
   .command({
     command: "run",
     describe: "Unpublishes entries older than a specific date",
-    builder: {
-      unpublishOlderThan: {
-        alias: "d",
-        describe: "Threshold date to unpublish entries (YYYY-MM-DD [HH:mm:ss])",
-        type: "string",
-        demandOption: true,
-      },
-      contentTypeFilter: {
-        alias: "f",
-        describe: "Content type filter as a comma separated list of content types",
-        type: "string",
-        demandOption: false,
-      },
-      environment: {
-        alias: "e",
-        describe: "Environment to unpublish entries from",
-        type: "string",
-        demandOption: true,
-      },
-      locale: {
-        alias: "l",
-        describe: "Locale to unpublish entries from",
-        type: "string",
-        demandOption: true,
-      },
-      mode: {
-        alias: "m",
-        describe: "Mode to run the script in",
-        type: "string",
-        demandOption: false,
-        choices: ["live", "dry-run"],
-        default: "dry-run",
-      },
-      verbose: {
-        alias: "v",
-        describe: "Verbose mode",
-        type: "boolean",
-        demandOption: false,
-        default: false,
-      },
-    },
     handler: (argv) => {
       // console.log("ARGS", argv);
+      const d = new Date(argv.unpublishOlderThan);
+
       const options = {
+        date: d,
+        isoString: d.toISOString(),
+        utcString: d.toUTCString(),
         unpublishOlderThan: argv.unpublishOlderThan,
         contentTypeFilter: argv.contentTypeFilter,
         environment: argv.environment,
@@ -179,9 +143,59 @@ yargs(hideBin(process.argv))
         mode: argv.mode,
         verbose: argv.verbose,
       };
+      if (argv.verbose) {
+        console.log(`Running <${argv.$0}> with options:`, options);
+      }
       run(options);
     },
   })
-  .demandCommand(1, "You need at least one command before moving on")
-  .demandOption(["unpublishOlderThan", "environment", "locale"])
+  .option("unpublishOlderThan", {
+    alias: "d",
+    describe: "Threshold date to unpublish entries (YYYY-MM-DD [HH:mm:ss])",
+    type: "string",
+    demandOption: true,
+  })
+  .option("contentTypeFilter", {
+    alias: "f",
+    describe: "Content type filter as a comma separated list of content types",
+    type: "string",
+    demandOption: false,
+  })
+  .option("environment", {
+    alias: "e",
+    describe: "Environment to unpublish entries from",
+    type: "string",
+    demandOption: true,
+  })
+  .option("locale", {
+    alias: "l",
+    describe: "Locale to unpublish entries from",
+    type: "string",
+    demandOption: true,
+  })
+  .option("mode", {
+    alias: "m",
+    describe: "Mode to run the script in",
+    type: "string",
+    demandOption: false,
+    choices: ["live", "dry-run"],
+    default: "dry-run",
+  })
+  .option("verbose", {
+    alias: "v",
+    describe: "Verbose mode",
+    type: "boolean",
+    demandOption: false,
+    default: false,
+  })
+
+  .example(
+    `$0 run -d "2022-02-16 15:32:07" -e production -l en-us -f article,home -m dry-run  --v`,
+    "Using dry-rum mode logs entries older than 2022-02-16 15:32:07 that will be unpublished from production environment for en-us locale for article and home content types, when running in live mode."
+  )
+  .example(
+    `$0 run -d "2022-02-16" -e production -l en-us -m live`,
+    "Unpublishes entries older than 2022-02-16 that will be unpublished from production environment for en-us locale for article and home content types."
+  )
+  //node unpublish.js run -d "2022-02-16 15:32:07" -e production -l en-us -f article,home -m dry-run  --v
   .help().argv;
