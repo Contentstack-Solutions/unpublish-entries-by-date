@@ -1,6 +1,6 @@
 # unpublish-old-entries
 
-**1. Fill in .env file**
+**1. Change `.example.env` to `.env` and fill in `.env` file**
 
 **2. Install Packages using `npm install`**
 
