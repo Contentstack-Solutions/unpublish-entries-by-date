@@ -2,6 +2,8 @@
 
 ## Using `unpublish.js`
 
+First you need to change `.example.env` to `.env` and fill in the file.
+
 ```bash
 node unpublish.js --help
 
