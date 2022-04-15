@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import 'dotenv/config'
 
 async function run() {
     let contentTypes = await getContentTypes();
@@ -23,7 +24,7 @@ async function getContentTypes() {
     return new Promise(async (resolve, reject) => {
         await fetch("https://cdn.contentstack.io/v3/content_types", {
             method: 'GET',
-            headers: { "api_key": "bltc657f49a3d6bd49c", "access_token": "csd5a9eda15afe9574a6c58b43" }
+            headers: { "api_key": process.env.REACT_API_KEY, "access_token": process.env.REACT_DELIVERY_TOKEN }
         })
             .then(res => res.json())
             .then(data => resolve(data))
@@ -35,7 +36,7 @@ async function getEntries(contentType) {
     return new Promise(async (resolve, reject) => {
         await fetch("https://cdn.contentstack.io/v3/content_types/" + contentType + "/entries?environment=production", {
             method: 'GET',
-            headers: { "api_key": "bltc657f49a3d6bd49c", "access_token": "csd5a9eda15afe9574a6c58b43" }
+            headers: { "api_key": process.env.REACT_API_KEY, "access_token": process.env.REACT_DELIVERY_TOKEN }
         })
             .then(response => response.json())
             .then(data => resolve(data))
@@ -43,15 +44,13 @@ async function getEntries(contentType) {
                 reject(error);
             })
     })
-
 }
-
 
 async function unpublishEntry(contentType, entry) {
     return new Promise(async (resolve, reject) => {
         await fetch("https://api.contentstack.io/v3/content_types/+" + contentType + "/entries/" + entry.uid + "/unpublish", {
             method: 'POST',
-            headers: { "api_key": "bltc657f49a3d6bd49c", "access_token": "csd5a9eda15afe9574a6c58b43" }
+            headers: { "api_key": process.env.REACT_API_KEY, "authorization": process.env.REACT_MANAGEMENT_TOKEN }
         })
             .then(response => response.json())
             .then((data) => {
@@ -60,7 +59,6 @@ async function unpublishEntry(contentType, entry) {
             })
             .catch((error) => reject(error))
     })
-
 }
 
 run();
