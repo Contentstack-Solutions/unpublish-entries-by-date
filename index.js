@@ -1,0 +1,66 @@
+import fetch from 'node-fetch';
+
+async function run() {
+    let contentTypes = await getContentTypes();
+    for (let i = 0; i < contentTypes.content_types.length; i++) {
+        let contentType = contentTypes.content_types[i].uid;
+        let entryArray = await getEntries(contentType);
+        for (let j = 0; j < entryArray.entries.length; j++) {
+            let createdDate = new Date(Date.parse(entryArray.entries[j].created_at));
+            let todaysDate = new Date();
+            if ((todaysDate - createdDate) / (1000 * 3600 * 24 * 365) >= 2) {
+                console.log("Content is older than 2 years | Title: " + entryArray.entries[j].title + " | UID: " + entryArray.entries[j].uid);
+                //unpublishEntry(contentType, entryArray.entries[j]);
+            }
+            else {
+                console.log("Content is less than 2 years old | Title: " + entryArray.entries[j].title + " | UID: " + entryArray.entries[j].uid);
+            }
+        }
+    }
+}
+
+async function getContentTypes() {
+    return new Promise(async (resolve, reject) => {
+        await fetch("https://cdn.contentstack.io/v3/content_types", {
+            method: 'GET',
+            headers: { "api_key": "bltc657f49a3d6bd49c", "access_token": "csd5a9eda15afe9574a6c58b43" }
+        })
+            .then(res => res.json())
+            .then(data => resolve(data))
+            .catch(error => reject(error))
+    })
+}
+
+async function getEntries(contentType) {
+    return new Promise(async (resolve, reject) => {
+        await fetch("https://cdn.contentstack.io/v3/content_types/" + contentType + "/entries?environment=production", {
+            method: 'GET',
+            headers: { "api_key": "bltc657f49a3d6bd49c", "access_token": "csd5a9eda15afe9574a6c58b43" }
+        })
+            .then(response => response.json())
+            .then(data => resolve(data))
+            .catch((error) => {
+                reject(error);
+            })
+    })
+
+}
+
+
+async function unpublishEntry(contentType, entry) {
+    return new Promise(async (resolve, reject) => {
+        await fetch("https://api.contentstack.io/v3/content_types/+" + contentType + "/entries/" + entry.uid + "/unpublish", {
+            method: 'POST',
+            headers: { "api_key": "bltc657f49a3d6bd49c", "access_token": "csd5a9eda15afe9574a6c58b43" }
+        })
+            .then(response => response.json())
+            .then((data) => {
+                console.log(data);
+                resolve();
+            })
+            .catch((error) => reject(error))
+    })
+
+}
+
+run();
