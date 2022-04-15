@@ -1,5 +1,7 @@
 # unpublish-old-entries
 
-**1. Install Packages using _npm install_**
+**1. Fill in .env file**
 
-**2. Run using _node index.js_**
+**2. Install Packages using `npm install`**
+
+**3. Run using `node index.js`**
