@@ -10,29 +10,29 @@ function delay(time) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
-function LOG(mode, verbose, message) {
-  if (verbose) {
-    console.log(`[${mode}] :: ${message}`);
+function LOG(options, message) {
+  if (options.verbose) {
+    console.log(`[${options.mode}] :: ${message}`);
   }
 }
 
-async function run(unpublishOlderThan, contentTypeFilter, environment, locale, mode, verbose) {
+async function run(options) {
   let contentTypes = await getContentTypes();
 
   contentTypes = contentTypes.content_types.map((ct) => ct.uid);
-  if (contentTypeFilter) {
-    const ctArray = contentTypeFilter.split(",");
+  if (options.contentTypeFilter) {
+    const ctArray = options.contentTypeFilter.split(",");
     contentTypes = contentTypes.filter((contentType) => ctArray.includes(contentType));
   }
-  LOG(mode, verbose, `Content Types to Unpublish: ${contentTypes.toString()}`);
+  LOG(options, `Content Types to Unpublish: ${contentTypes.toString()}`);
 
   for (let i = 0; i < contentTypes.length; i++) {
-    let entryArray = await getEntries(contentTypes[i], environment, verbose);
+    let entryArray = await getEntries(contentTypes[i], options);
     for (let j = 0; j < entryArray.entries.length; j++) {
       let createdDate = new Date(Date.parse(entryArray.entries[j].created_at));
       const thresholdDate = new Date(Date.parse(unpublishOlderThan));
       if (createdDate.getTime() < thresholdDate.getTime()) {
-        unpublishEntry(contentTypes[i], entryArray.entries[j], locale, environment, mode, verbose);
+        unpublishEntry(contentTypes[i], entryArray.entries[j], options);
       } else {
         LOG(
           verbose,
@@ -55,12 +55,15 @@ async function getContentTypes() {
   });
 }
 
-async function getEntries(contentType, environment) {
+async function getEntries(contentType, options) {
   return new Promise(async (resolve, reject) => {
-    await fetch("https://cdn.contentstack.io/v3/content_types/" + contentType + "/entries?environment=" + environment, {
-      method: "GET",
-      headers: { api_key: process.env.REACT_API_KEY, access_token: process.env.REACT_DELIVERY_TOKEN },
-    })
+    await fetch(
+      "https://cdn.contentstack.io/v3/content_types/" + contentType + "/entries?environment=" + options.environment,
+      {
+        method: "GET",
+        headers: { api_key: process.env.REACT_API_KEY, access_token: process.env.REACT_DELIVERY_TOKEN },
+      }
+    )
       .then((response) => response.json())
       .then((data) => resolve(data))
       .catch((error) => {
@@ -69,18 +72,18 @@ async function getEntries(contentType, environment) {
   });
 }
 
-async function unpublishEntry(contentType, entry, locale, environment, mode, verbose) {
-  const log = `Unpublish [${locale}][${entry.title}][${entry.uid}]. Content was created on: ${entry.created_at}`;
+async function unpublishEntry(contentType, entry, options) {
+  const log = `Unpublish [${options.locale}][${entry.title}][${entry.uid}]. Content was created on: ${entry.created_at}`;
   if (mode && mode === "live") {
     return new Promise(async (resolve, reject) => {
       const unpublishBody = {
         entry: {
-          environments: [environment],
-          locales: [locale],
+          environments: [options.environment],
+          locales: [options.locale],
         },
-        locale: locale,
+        locale: options.locale,
       };
-      LOG(mode, verbose, log);
+      LOG(options, log);
       await fetch(
         "https://api.contentstack.io/v3/content_types/" + contentType + "/entries/" + entry.uid + "/unpublish",
         {
@@ -96,28 +99,28 @@ async function unpublishEntry(contentType, entry, locale, environment, mode, ver
         .then((response) => response.json())
         .then((data) => {
           if (data.error_code && data.data_error_code === "429") {
-            LOG(mode, verbose, `Rate limit exceeded. Waiting for 1 seconds.`);
+            LOG({ ...options, verbose: true }, `Rate limit exceeded. Waiting for 1 seconds.`);
             delay(1000)
               .then(() => {
-                resolve(unpublishEntry(contentType, entry, locale, environment, mode));
+                resolve(unpublishEntry(contentType, entry, options));
               })
               .catch((error) => {
-                LOG(mode, true, `${log} :: Error`, error);
+                LOG({ ...options, verbose: true }, `${log} :: Error`, error);
                 reject(error);
               });
             resolve({});
           } else {
-            LOG(mode, verbose, `${log} :: Success`);
+            LOG(options, `${log} :: Success`);
             resolve({});
           }
         })
         .catch((error) => {
-          LOG(mode, true, `${log} :: Error`, error);
+          LOG({ ...options, verbose: true }, `${log} :: Error`, error);
           reject(error);
         });
     });
   } else {
-    LOG(mode, verbose, log);
+    LOG(options, log);
   }
 }
 
@@ -168,7 +171,15 @@ yargs(hideBin(process.argv))
     },
     handler: (argv) => {
       // console.log("ARGS", argv);
-      run(argv.unpublishOlderThan, argv.contentTypeFilter, argv.environment, argv.locale, argv.mode, argv.verbose);
+      const options = {
+        unpublishOlderThan: argv.unpublishOlderThan,
+        contentTypeFilter: argv.contentTypeFilter,
+        environment: argv.environment,
+        locale: argv.locale,
+        mode: argv.mode,
+        verbose: argv.verbose,
+      };
+      run(options);
     },
   })
   .demandCommand(1, "You need at least one command before moving on")
